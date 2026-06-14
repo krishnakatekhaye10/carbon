@@ -105,6 +105,7 @@ function getAqiDetails(aqi) {
 export default function WeatherAqiWidget() {
   const { addToast } = useToast();
   const watchIdRef = useRef(null);
+  const permissionDeniedRef = useRef(false);
   const [isGpsLive, setIsGpsLive] = useState(false);
   
   // Coordinates and Location states
@@ -171,7 +172,7 @@ export default function WeatherAqiWidget() {
         setLocationName(`Lat: ${latitude.toFixed(2)}, Lon: ${longitude.toFixed(2)}`);
       }
     } catch (err) {
-      console.warn('Reverse geocoding failed:', err);
+      console.debug('Reverse geocoding failed:', err);
       setLocationName(`Lat: ${latitude.toFixed(2)}, Lon: ${longitude.toFixed(2)}`);
     }
   }, []);
@@ -195,6 +196,11 @@ export default function WeatherAqiWidget() {
       addToast('GPS Geolocation is not supported by your browser.', 'warning');
       return;
     }
+    // If permission was previously denied, avoid re-requesting automatically
+    if (permissionDeniedRef.current) {
+      addToast('Location access has been denied. Please enable it in your browser to use live GPS.', 'warning');
+      return;
+    }
     
     setLoading(true);
     clearGpsWatch();
@@ -213,8 +219,23 @@ export default function WeatherAqiWidget() {
     };
 
     const errorCallback = (err) => {
-      console.warn('Geolocation failed:', err);
-      addToast('GPS connection failed. Displaying default coordinates.', 'info');
+      // Some browsers provide a PositionError object with code/message
+      const code = err && err.code ? err.code : null;
+      const message = err && err.message ? err.message : '';
+      console.warn('Geolocation failed:', code, message, err);
+
+      // If permission was denied, remember it and avoid auto-retrying
+      if (code === 1) {
+        permissionDeniedRef.current = true;
+        addToast('Location permission denied. Please enable location access in your browser settings.', 'warning');
+      } else if (code === 2) {
+        addToast('Unable to determine your location. Showing default coordinates.', 'info');
+      } else if (code === 3) {
+        addToast('Location request timed out. Using default coordinates.', 'info');
+      } else {
+        addToast('GPS connection failed. Displaying default coordinates.', 'info');
+      }
+
       setIsGpsLive(false);
       setLat(DEFAULT_LAT);
       setLon(DEFAULT_LON);
