@@ -88,8 +88,12 @@ Respond with JSON only. Do not wrap in markdown code blocks.
         }
       ],
       generationConfig: {
-        responseMimeType: "application/json"
-      }
+        // Avoid empty-output errors caused by strict MIME-type enforcement;
+        // we strip markdown fences ourselves below.
+        temperature: 0.4
+      },
+      // Disable the thinking budget on flash to prevent empty responses
+      thinkingConfig: { thinkingBudget: 0 }
     };
 
     const response = await fetch(url, {
@@ -111,7 +115,9 @@ Respond with JSON only. Do not wrap in markdown code blocks.
       throw new Error('Empty response from Gemini');
     }
 
-    return JSON.parse(responseText);
+    // Strip optional markdown code fences (```json ... ``` or ``` ... ```)
+    const cleaned = responseText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
+    return JSON.parse(cleaned);
   } catch (err) {
     console.warn('Gemini API call failed, falling back to offline recommendations:', err);
     return getOfflineRecommendation();
