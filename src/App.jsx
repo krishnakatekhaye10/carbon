@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, Suspense, lazy } from 'react';
+import { motion } from 'framer-motion';
 import { Sun, Moon, Home, Compass, GraduationCap, Newspaper, Vote, Award, Shield, User, LogOut, Loader2 } from 'lucide-react';
 import { ToastProvider, useToast } from './components/ToastContext';
 import { calculateCarbonBreakdown, calculateCarbonFootprint } from './utils/footprintMath';
