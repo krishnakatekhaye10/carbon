@@ -1,30 +1,15 @@
 import React, { useState, useEffect, useMemo, Suspense, lazy } from 'react';
-import { Sun, Moon, Home, GraduationCap, Newspaper, Vote, Compass, Users } from 'lucide-react';
+import { Sun, Moon, Home, Compass, GraduationCap, Newspaper, Vote, Award, Shield, User, LogOut, Loader2 } from 'lucide-react';
 import { ToastProvider, useToast } from './components/ToastContext';
 import { calculateCarbonBreakdown, calculateCarbonFootprint } from './utils/footprintMath';
-import { HABIT_LIBRARY } from './utils/constants';
 
-const Hero = lazy(() => import('./components/Hero'));
-const TrackingTools = lazy(() => import('./components/TrackingTools'));
-const Education = lazy(() => import('./components/Education'));
-const ClimateBuzz = lazy(() => import('./components/ClimateBuzz'));
-const ActPlatform = lazy(() => import('./components/ActPlatform'));
-const Login = lazy(() => import('./components/Login'));
-const LiveBackground = lazy(() => import('./components/LiveBackground'));
-const GlobalStatsBar = lazy(() => import('./components/GlobalStatsBar'));
-const Leaderboard = lazy(() => import('./components/Leaderboard'));
-const Onboarding = lazy(() => import('./components/Onboarding'));
-const Dashboard = lazy(() => import('./components/DashboardFixed'));
-const HabitTracker = lazy(() => import('./components/HabitTracker'));
-const Compare = lazy(() => import('./components/Compare'));
-const Coach = lazy(() => import('./components/Coach'));
-const WeatherAqiWidget = lazy(() => import('./components/WeatherAqiWidget'));
-const TransitAdvisory = lazy(() => import('./components/TransitAdvisory'));
-const AIClimateCoach = lazy(() => import('./components/AIClimateCoach'));
-const ClimateNews = lazy(() => import('./components/ClimateNews'));
-
-import Skeleton from './components/Skeleton';
-
+// Lazy loaded page components
+const HomePage = lazy(() => import('./pages/HomePage'));
+const DashboardPage = lazy(() => import('./pages/DashboardPage'));
+const CoachPage = lazy(() => import('./pages/CoachPage'));
+const LearnPage = lazy(() => import('./pages/LearnPage'));
+const NewsPage = lazy(() => import('./pages/NewsPage'));
+const ActPlatformPage = lazy(() => import('./pages/ActPlatformPage'));
 
 const DEFAULT_CALCULATOR_DATA = {
   transport: { carKm: 150, fuelType: 'gas', publicKm: 50 },
@@ -42,39 +27,207 @@ export default function App() {
   );
 }
 
+function PageSkeleton() {
+  return (
+    <div className="w-full max-w-6xl mx-auto px-4 py-8 space-y-6 animate-pulse" aria-busy="true">
+      <div className="h-40 bg-slate-200 dark:bg-slate-800 rounded-3xl w-full"></div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="h-48 bg-slate-200 dark:bg-slate-800 rounded-2xl"></div>
+        <div className="h-48 bg-slate-200 dark:bg-slate-800 rounded-2xl"></div>
+        <div className="h-48 bg-slate-200 dark:bg-slate-800 rounded-2xl"></div>
+      </div>
+      <div className="h-64 bg-slate-200 dark:bg-slate-800 rounded-3xl w-full"></div>
+    </div>
+  );
+}
+
 function AppInner() {
   const { addToast } = useToast();
+  
+  // Theme state
   const [theme, setTheme] = useState(() => {
-    try { return localStorage.getItem('theme') || 'light'; } catch(e){ return 'light'; }
-  }); // Eco-centric default is Light Mode
-  const [activeTab, setActiveTab] = useState('home'); // Starts on home portal
-  const [isOnboarded, setIsOnboarded] = useState(false);
-  const [calculatorData, setCalculatorData] = useState(DEFAULT_CALCULATOR_DATA);
+    try {
+      return localStorage.getItem('theme') || 'light';
+    } catch {
+      return 'light';
+    }
+  });
 
-  // Authentication State
-  const [user, setUser] = useState(null);
+  // Active page state
+  const [activeTab, setActiveTab] = useState('home');
 
-  // Carbon Sub-routing inside Tracking -> Carbon Footprint
-  const [carbonSubTab, setCarbonSubTab] = useState('dashboard');
+  // User state
+  const [user, setUser] = useState(() => {
+    try {
+      const stored = localStorage.getItem('carbon_user');
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  });
 
-  // Gamification States
-  const [activeHabits, setActiveHabits] = useState([]);
-  const [completedThisWeek, setCompletedThisWeek] = useState([]);
-  const [totalSavedCo2, setTotalSavedCo2] = useState(0); // in kg
-  const [xp, setXp] = useState(0);
-  const [level, setLevel] = useState(1);
-  const [badgeIds, setBadgeIds] = useState(['sprout']);
+  // Carbon calculator data
+  const [calculatorData, setCalculatorData] = useState(() => {
+    try {
+      const stored = localStorage.getItem('carbon_tracker_data');
+      return stored ? JSON.parse(stored) : DEFAULT_CALCULATOR_DATA;
+    } catch {
+      return DEFAULT_CALCULATOR_DATA;
+    }
+  });
 
-  // Sync theme attribute on document root and persist preference
+  // Gamification state
+  const [gamification, setGamification] = useState(() => {
+    try {
+      const stored = localStorage.getItem('carbon_gamification');
+      return stored ? JSON.parse(stored) : {
+        xp: 0,
+        level: 1,
+        badgeIds: ['first_calculation'],
+        streak: 12,
+        lastActiveDate: new Date().toISOString().split('T')[0],
+        completedChallenges: [],
+        co2Saved: 120, // kg CO2 saved
+        waterSaved: 4200, // Liters water saved
+        energySaved: 32, // kWh energy saved
+        reductionGoal: 20 // percent reduction target
+      };
+    } catch {
+      return {
+        xp: 0,
+        level: 1,
+        badgeIds: ['first_calculation'],
+        streak: 12,
+        lastActiveDate: new Date().toISOString().split('T')[0],
+        completedChallenges: [],
+        co2Saved: 120,
+        waterSaved: 4200,
+        energySaved: 32,
+        reductionGoal: 20
+      };
+    }
+  });
+
+  // Onboarding status
+  const [isOnboarded, setIsOnboarded] = useState(() => {
+    try {
+      return localStorage.getItem('carbon_onboarded') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  // Login Modal State
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [loginName, setLoginName] = useState('');
+  const [loginAvatar, setLoginAvatar] = useState('🌱');
+  const avatars = ['🌱', '🚲', '🌍', '⚡', '🐼', '🦊', '🦉', '🌳'];
+
+  // Sync theme with HTML tag
   useEffect(() => {
     const root = window.document.documentElement;
     root.setAttribute('data-theme', theme);
-    try { localStorage.setItem('theme', theme); } catch(e) {}
+    if (theme === 'dark') {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+    try {
+      localStorage.setItem('theme', theme);
+    } catch {}
   }, [theme]);
 
-  // Carbon Footprint calculation hooks
-  const calculateBreakdown = calculateCarbonBreakdown;
-  const calculateFootprint = calculateCarbonFootprint;
+  // Sync state to local storage
+  useEffect(() => {
+    if (user) {
+      try {
+        localStorage.setItem('carbon_user', JSON.stringify(user));
+      } catch {}
+    } else {
+      try {
+        localStorage.removeItem('carbon_user');
+      } catch {}
+    }
+  }, [user]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('carbon_tracker_data', JSON.stringify(calculatorData));
+    } catch {}
+  }, [calculatorData]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('carbon_gamification', JSON.stringify(gamification));
+    } catch {}
+  }, [gamification]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('carbon_onboarded', String(isOnboarded));
+    } catch {}
+  }, [isOnboarded]);
+
+  // Manage login attempt
+  const handleLoginSubmit = (e) => {
+    e.preventDefault();
+    if (!loginName.trim()) return;
+    
+    const profile = { name: loginName.trim(), avatar: loginAvatar };
+    setUser(profile);
+    setShowLoginModal(false);
+    addToast(`Welcome back, ${profile.name}! 🌱`, 'success');
+  };
+
+  const handleSignOut = () => {
+    setUser(null);
+    setIsOnboarded(false);
+    setActiveTab('home');
+    try {
+      localStorage.removeItem('carbon_user');
+      localStorage.removeItem('carbon_onboarded');
+    } catch {}
+    addToast('Signed out successfully.', 'info');
+  };
+
+  // Gamification helper triggers
+  const addXp = (amount) => {
+    const nextXp = gamification.xp + amount;
+    const nextLevel = Math.floor(nextXp / 400) + 1;
+    let earnedBadges = [...gamification.badgeIds];
+
+    let badgeNotification = null;
+
+    if (nextLevel > gamification.level) {
+      addToast(`🎉 Level Up! You reached Level ${nextLevel}!`, 'success', 4500);
+      if (nextLevel >= 2 && !earnedBadges.includes('eco_beginner')) {
+        earnedBadges.push('eco_beginner');
+        badgeNotification = '🌱 Eco Beginner';
+      }
+      if (nextLevel >= 3 && !earnedBadges.includes('recycling_champion')) {
+        earnedBadges.push('recycling_champion');
+        badgeNotification = '♻️ Recycling Champion';
+      }
+      if (nextLevel >= 4 && !earnedBadges.includes('climate_hero')) {
+        earnedBadges.push('climate_hero');
+        badgeNotification = '🌍 Climate Hero';
+      }
+    }
+
+    setGamification(prev => ({
+      ...prev,
+      xp: nextXp,
+      level: nextLevel,
+      badgeIds: earnedBadges
+    }));
+
+    addToast(`+${amount} XP earned!`, 'info', 2000);
+    if (badgeNotification) {
+      setTimeout(() => {
+        addToast(`🏅 Unlocked Badge: ${badgeNotification}!`, 'success', 4000);
+      }, 1000);
+    }
+  };
 
   const updateCalculatorData = (category, field, value) => {
     setCalculatorData(prev => ({
@@ -86,546 +239,255 @@ function AppInner() {
     }));
   };
 
-  // XP progression system
-  const addXp = (amount) => {
-    const nextXp = xp + amount;
-    const nextLevel = Math.floor(nextXp / 400) + 1;
-    setXp(nextXp);
-    
-    if (nextLevel > level) {
-      setLevel(nextLevel);
-      addToast(`🎉 Level Up! You reached Level ${nextLevel}!`, 'success', 4000);
-      if (nextLevel >= 4 && !badgeIds.includes('climate_hero')) {
-        setBadgeIds(b => [...b, 'climate_hero']);
-      }
+  // Nav interceptor for unauthenticated users
+  const handleNavClick = (tab) => {
+    if (tab === 'home') {
+      setActiveTab('home');
+      return;
     }
-    addToast(`+${amount} XP earned! Keep it up 🌿`, 'info', 2500);
-  };
-
-  const adoptHabit = (habitId) => {
-    if (!activeHabits.includes(habitId)) {
-      setActiveHabits(prev => [...prev, habitId]);
-      if (activeHabits.length === 0 && !badgeIds.includes('first_habit')) {
-        setBadgeIds(prev => [...prev, 'first_habit']);
-      }
+    if (!user) {
+      setShowLoginModal(true);
+      return;
     }
+    setActiveTab(tab);
   };
-
-  const removeHabit = (habitId) => {
-    setActiveHabits(prev => prev.filter(id => id !== habitId));
-    setCompletedThisWeek(prev => prev.filter(id => id !== habitId));
-  };
-
-  const completeHabit = (habitId) => {
-    if (!completedThisWeek.includes(habitId)) {
-      const habit = HABIT_LIBRARY.find(h => h.id === habitId);
-      if (!habit) return;
-
-      setCompletedThisWeek(prev => [...prev, habitId]);
-      setTotalSavedCo2(prev => {
-        const nextVal = prev + habit.co2Saved;
-        if (nextVal >= 50 && !badgeIds.includes('carbon_slayer')) {
-          setBadgeIds(b => [...b, 'carbon_slayer']);
-        }
-        return nextVal;
-      });
-
-      addXp(habit.xp);
-    }
-  };
-
-  const handleOnboardingComplete = (data) => {
-    setCalculatorData(data);
-    setIsOnboarded(true);
-  };
-
-  const footprint = useMemo(() => calculateCarbonFootprint(calculatorData), [calculatorData]);
-  const breakdown = useMemo(() => calculateCarbonBreakdown(calculatorData), [calculatorData]);
-
-  // RENDER CARBON DETAILED SUB-TAB (Breathing Orb, Sliders, Habits, Compare, Coach)
-  const renderCarbonDashboard = () => {
-    if (!isOnboarded) {
-      return (
-        <Onboarding
-          onComplete={handleOnboardingComplete}
-          initialData={calculatorData}
-          calculateFootprint={calculateFootprint}
-        />
-      );
-    }
-
-    return (
-      <div className="glass-card animate-fade-in" style={{ padding: 24 }}>
-        {/* Carbon Sub Nav */}
-        <div style={{ display: 'flex', gap: 6, borderBottom: '1px solid var(--border-color)', paddingBottom: 12, marginBottom: 20, flexWrap: 'wrap' }}>
-          {[
-            { id: 'dashboard', label: 'Orb & Sliders' },
-            { id: 'habits', label: 'Adopt Habits' },
-            { id: 'compare', label: 'Compare Footprint' },
-            { id: 'coach', label: 'Climate Coach' }
-          ].map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setCarbonSubTab(tab.id)}
-              className="tab-btn"
-              style={{
-                fontSize: 12,
-                padding: '6px 12px',
-                backgroundColor: carbonSubTab === tab.id ? 'var(--bg-tertiary)' : 'transparent',
-                color: carbonSubTab === tab.id ? 'var(--color-accent)' : 'var(--text-secondary)'
-              }}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Sub-routing render */}
-        {carbonSubTab === 'dashboard' && (
-          <Dashboard
-            data={calculatorData}
-            onUpdate={updateCalculatorData}
-            calculateBreakdown={calculateBreakdown}
-            calculateFootprint={calculateFootprint}
-          />
-        )}
-
-        {carbonSubTab === 'habits' && (
-          <HabitTracker
-            activeHabits={activeHabits}
-            completedThisWeek={completedThisWeek}
-            totalSavedCo2={totalSavedCo2}
-            xp={xp}
-            level={level}
-            adoptHabit={adoptHabit}
-            removeHabit={removeHabit}
-            completeHabit={completeHabit}
-            badgeIds={badgeIds}
-          />
-        )}
-
-        {carbonSubTab === 'compare' && (
-          <Compare footprint={footprint} addXp={addXp} user={user} />
-        )}
-
-        {carbonSubTab === 'coach' && (
-          <Coach
-            footprint={footprint}
-            breakdown={breakdown}
-            data={calculatorData}
-            user={user}
-          />
-        )}
-      </div>
-    );
-  };
-
-  // IF USER IS NOT LOGGED IN, INTERCEPT APP VIEW
-  if (!user) {
-    return (
-      <Suspense fallback={<div aria-busy="true" className="skeleton">Loading…</div>}>
-        <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', position: 'relative' }}>
-        <LiveBackground theme={theme} />
-        {/* Header decoration */}
-        <header className="glass-card" style={{
-          margin: '20px 20px 0',
-          padding: '16px 24px',
-          borderRadius: '20px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          zIndex: 10
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{
-              background: 'linear-gradient(135deg, #34d399, #059669)',
-              width: 38,
-              height: 38,
-              borderRadius: 12,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 4px 14px rgba(16,185,129,0.4)'
-            }}>
-              <svg viewBox="0 0 32 32" width="22" height="22" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M16 2C24 2, 28 10, 26 18C24 25, 18 28, 10 26C6 19, 8 9, 16 2Z" fill="rgba(255,255,255,0.9)"/>
-                <path d="M16 2 L13 22" stroke="#059669" strokeWidth="1.4" strokeLinecap="round"/>
-                <path d="M13 15C15 13, 19 12, 22 13" stroke="#059669" strokeWidth="1" strokeLinecap="round"/>
-                <path d="M13 19C15 17.5, 18 17, 21 18" stroke="#059669" strokeWidth="1" strokeLinecap="round"/>
-                <circle cx="16" cy="9" r="2" fill="#10b981"/>
-                <circle cx="20" cy="13" r="1.5" fill="#10b981"/>
-                <circle cx="19" cy="19" r="1.5" fill="#10b981"/>
-                <path d="M13 26 L13 30 M13 30 L10 27 M13 30 L16 27" stroke="rgba(255,255,255,0.8)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </span>
-            <div>
-              <h1 style={{ fontSize: 19, color: 'var(--text-primary)', lineHeight: 1 }}>Climatora</h1>
-              <span style={{ fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 800 }}>
-                Sustaining Future
-              </span>
-            </div>
-          </div>
-          <button
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            style={{
-              width: 38,
-              height: 38,
-              borderRadius: 12,
-              border: '1px solid var(--border-color)',
-              background: 'var(--bg-tertiary)',
-              color: 'var(--text-primary)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer'
-            }}
-          >
-            {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-          </button>
-        </header>
-
-        <main style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <Login onLogin={(profile) => setUser(profile)} />
-        </main>
-      </div>
-      </Suspense>
-    );
-  }
 
   return (
-    <Suspense fallback={<div aria-busy="true" className="skeleton">Loading…</div>}>
-      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', position: 'relative' }}>
-      <LiveBackground theme={theme} />
-
+    <div className="min-h-screen bg-lightbg dark:bg-darkbg text-slate-800 dark:text-slate-100 flex flex-col font-jakarta transition-colors duration-200 pb-20 md:pb-0">
+      
       {/* Top Navbar */}
-      <header className="glass-card" style={{
-        margin: '20px 20px 0',
-        padding: '16px 24px',
-        borderRadius: '20px',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        zIndex: 10
-      }}>
-        {/* Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }} onClick={() => setActiveTab('home')}>
-          <span style={{
-              background: 'linear-gradient(135deg, #34d399, #059669)',
-              width: 38,
-              height: 38,
-              borderRadius: 12,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 4px 14px rgba(16,185,129,0.4)'
-            }}>
-              <svg viewBox="0 0 32 32" width="22" height="22" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M16 2C24 2, 28 10, 26 18C24 25, 18 28, 10 26C6 19, 8 9, 16 2Z" fill="rgba(255,255,255,0.9)"/>
-                <path d="M16 2 L13 22" stroke="#059669" strokeWidth="1.4" strokeLinecap="round"/>
-                <path d="M13 15C15 13, 19 12, 22 13" stroke="#059669" strokeWidth="1" strokeLinecap="round"/>
-                <path d="M13 19C15 17.5, 18 17, 21 18" stroke="#059669" strokeWidth="1" strokeLinecap="round"/>
-                <circle cx="16" cy="9" r="2" fill="#10b981"/>
-                <circle cx="20" cy="13" r="1.5" fill="#10b981"/>
-                <circle cx="19" cy="19" r="1.5" fill="#10b981"/>
-                <path d="M13 26 L13 30 M13 30 L10 27 M13 30 L16 27" stroke="rgba(255,255,255,0.8)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </span>
-          <div>
-            <h1 style={{ fontSize: 19, color: 'var(--text-primary)', lineHeight: 1 }}>Climatora</h1>
-            <span style={{ fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 800 }}>
-              Sustaining Future
-            </span>
+      <header className="sticky top-0 z-40 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200/50 dark:border-slate-800/50 px-4 md:px-8 py-4 flex items-center justify-between">
+        <div 
+          onClick={() => setActiveTab('home')}
+          className="flex items-center gap-2.5 cursor-pointer"
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => e.key === 'Enter' && setActiveTab('home')}
+          aria-label="Climatora Home"
+        >
+          <span className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-400 to-emerald-600 flex items-center justify-center text-white font-extrabold shadow-lg shadow-emerald-500/20">
+            C
+          </span>
+          <div className="flex flex-col text-left">
+            <h1 className="text-xl font-bold font-outfit leading-none tracking-tight">Climatora</h1>
+            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Sustaining Future</span>
           </div>
         </div>
 
-        {/* User Profile details & Toggler */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            background: 'var(--bg-tertiary)',
-            padding: '6px 12px',
-            borderRadius: 14,
-            border: '1px solid var(--border-color)'
-          }}>
-            <span style={{ fontSize: 18 }}>{user.avatar}</span>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', maxWidth: 85, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-                {user.name}
-              </span>
-              <span style={{ fontSize: 9, color: 'var(--color-accent)', fontWeight: 800 }}>
-                Level {level} • {xp} XP
-              </span>
+        {/* Desktop Navbar Links */}
+        <nav className="hidden md:flex items-center gap-1.5" aria-label="Main Navigation">
+          {[
+            { id: 'home', label: 'Home', icon: Home },
+            { id: 'track', label: 'Dashboard', icon: Compass },
+            { id: 'learn', label: 'Learn', icon: GraduationCap },
+            { id: 'buzz', label: 'News Feed', icon: Newspaper },
+            { id: 'act', label: 'Act & Shop', icon: Vote }
+          ].map(tab => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => handleNavClick(tab.id)}
+                className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
+                  isActive
+                    ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 font-bold'
+                    : 'text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-800/40'
+                }`}
+                aria-label={`Go to ${tab.label}`}
+              >
+                <Icon size={16} />
+                {tab.label}
+              </button>
+            );
+          })}
+        </nav>
+
+        {/* Right Nav Options */}
+        <div className="flex items-center gap-3">
+          {/* User badge */}
+          {user ? (
+            <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-800 px-3.5 py-1.5 rounded-2xl shadow-sm">
+              <span className="text-xl" role="img" aria-label="avatar">{user.avatar}</span>
+              <div className="hidden sm:flex flex-col text-left">
+                <span className="text-xs font-bold text-slate-700 dark:text-slate-200 max-w-[90px] truncate">{user.name}</span>
+                <span className="text-[9px] font-bold text-emerald-500">Lv {gamification.level} • {gamification.xp} XP</span>
+              </div>
+              <button
+                onClick={handleSignOut}
+                className="p-1.5 text-slate-400 hover:text-red-500 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                title="Sign Out"
+                aria-label="Sign Out"
+              >
+                <LogOut size={15} />
+              </button>
             </div>
-          </div>
+          ) : (
+            <button
+              onClick={() => setShowLoginModal(true)}
+              className="hidden md:flex items-center gap-1.5 px-4.5 py-2.5 bg-emerald-500 hover:bg-emerald-600 dark:bg-emerald-600 dark:hover:bg-emerald-700 text-white text-sm font-bold rounded-xl shadow-md shadow-emerald-500/10 hover:shadow-emerald-500/20 transform hover:-translate-y-0.5 active:translate-y-0 transition duration-150"
+              aria-label="Log In"
+            >
+              <User size={15} />
+              Log In
+            </button>
+          )}
 
+          {/* Theme Toggle */}
           <button
-            onClick={() => { setUser(null); setIsOnboarded(false); setActiveTab('home'); }}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--text-muted)',
-              cursor: 'pointer',
-              fontSize: 11,
-              fontWeight: 700
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.color = 'var(--color-rose)'}
-            onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-muted)'}
-          >
-            Sign Out
-          </button>
-
-          <button
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            style={{
-              width: 38,
-              height: 38,
-              borderRadius: 12,
-              border: '1px solid var(--border-color)',
-              background: 'var(--bg-tertiary)',
-              color: 'var(--text-primary)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              boxShadow: 'var(--shadow-sm)',
-              transition: 'all 0.2s'
-            }}
+            onClick={() => setTheme(prev => prev === 'dark' ? 'light' : 'dark')}
+            className="w-10 h-10 border border-slate-200 dark:border-slate-800 text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-slate-100 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl flex items-center justify-center shadow-sm transition-all duration-150"
+            aria-label="Toggle Theme"
           >
             {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
           </button>
         </div>
       </header>
 
-      {/* Main Container */}
-      <main style={{ flex: 1, padding: '24px 20px 100px', maxWidth: 1200, margin: '0 auto', width: '100%' }}>
-        {activeTab === 'home' ? (
-          <div>
-            {/* Hero Section */}
-            <Hero onNavigate={(tab) => setActiveTab(tab)} />
+      {/* Main Page Content */}
+      <main className="flex-1 max-w-7xl mx-auto w-full px-4 md:px-6 py-6" id="main-content">
+        <Suspense fallback={<PageSkeleton />}>
+          {activeTab === 'home' && (
+            <HomePage 
+              onNavigate={handleNavClick} 
+              isLoggedIn={!!user} 
+              onLoginClick={() => setShowLoginModal(true)} 
+            />
+          )}
 
-            {/* Global Real-time Climate Stats */}
-            <GlobalStatsBar />
-            
-            {/* Live Weather & AQI Location Widget */}
-            <Suspense fallback={<Skeleton lines={2} />}>
-              <WeatherAqiWidget />
-            </Suspense>
+          {activeTab === 'track' && user && (
+            <DashboardPage
+              calculatorData={calculatorData}
+              onUpdateCalculator={updateCalculatorData}
+              gamification={gamification}
+              setGamification={setGamification}
+              addXp={addXp}
+              isOnboarded={isOnboarded}
+              setIsOnboarded={setIsOnboarded}
+              onNavigate={handleNavClick}
+            />
+          )}
 
-            {/* Eco-Transit Suggestion & Travel Logger */}
-            <Suspense fallback={<Skeleton lines={3} />}>
-              <TransitAdvisory />
-            </Suspense>
-            
-            {/* Grid-Based Dashboard Architecture */}
-            <div style={{ marginTop: 40 }}>
-              <h3 style={{ fontSize: 20, color: 'var(--text-primary)', textAlign: 'center', marginBottom: 24 }}>Explore Interactive Portals</h3>
-              <div className="dashboard-grid-container">
-                
-                {/* Grid Item 1: Track */}
-                <div 
-                  className="glass-card" 
-                  onClick={() => setActiveTab('track')}
-                  style={{ padding: 24, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 12 }}
-                >
-                  <span style={{ fontSize: 32 }}>📊</span>
-                  <h4 style={{ fontSize: 16, color: 'var(--text-primary)' }}>Track Environmental Impact</h4>
-                  <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                    Assess your Carbon Footprint, Water usage, general Sustainability Quotient, and vulnerability index.
-                  </p>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-accent)', marginTop: 'auto' }}>Launch Calculators →</span>
-                </div>
+          {activeTab === 'learn' && user && (
+            <LearnPage addXp={addXp} user={user} gamification={gamification} />
+          )}
 
-                {/* Grid Item 2: Learn */}
-                <div 
-                  className="glass-card" 
-                  onClick={() => setActiveTab('learn')}
-                  style={{ padding: 24, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 12 }}
-                >
-                  <span style={{ fontSize: 32 }}>🎓</span>
-                  <h4 style={{ fontSize: 16, color: 'var(--text-primary)' }}>Learning Academy</h4>
-                  <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                    Build environmental skills via quizzes, search definitions in our Glossary, and RSVP for green workshops.
-                  </p>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-accent)', marginTop: 'auto' }}>Open Academy →</span>
-                </div>
+          {activeTab === 'buzz' && user && (
+            <NewsPage user={user} />
+          )}
 
-                {/* Grid Item 3: Buzz */}
-                <div 
-                  className="glass-card" 
-                  onClick={() => setActiveTab('buzz')}
-                  style={{ padding: 24, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 12 }}
-                >
-                  <span style={{ fontSize: 32 }}>📰</span>
-                  <h4 style={{ fontSize: 16, color: 'var(--text-primary)' }}>Climate Buzz Feed</h4>
-                  <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                    Stay informed with Climate Watch news, stories regarding advocates, calendars, and educational blogs.
-                  </p>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-accent)', marginTop: 'auto' }}>Explore Buzz →</span>
-                </div>
+          {activeTab === 'act' && user && (
+            <ActPlatformPage 
+              gamification={gamification} 
+              setGamification={setGamification}
+              addXp={addXp} 
+              user={user} 
+            />
+          )}
 
-                {/* Grid Item 4: Act */}
-                <div 
-                  className="glass-card" 
-                  onClick={() => setActiveTab('act')}
-                  style={{ padding: 24, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 12 }}
-                >
-                  <span style={{ fontSize: 32 }}>🗳️</span>
-                  <h4 style={{ fontSize: 16, color: 'var(--text-primary)' }}>Community Act Platform</h4>
-                  <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                    Cast votes on local priorities, enter eco contests, check buying guides, and publish green posts.
-                  </p>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-accent)', marginTop: 'auto' }}>Take Action →</span>
-                </div>
-
-                {/* Grid Item 4b: AI Climate Coach */}
-                <div 
-                  className="glass-card" 
-                  onClick={() => setActiveTab('ai-coach')}
-                  style={{ padding: 24, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 12 }}
-                >
-                  <span style={{ fontSize: 32 }}>🤖</span>
-                  <h4 style={{ fontSize: 16, color: 'var(--text-primary)' }}>AI Climate Coach</h4>
-                  <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                    Personalized AI recommendations to reduce your footprint, weekly challenges and progress tracking.
-                  </p>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-accent)', marginTop: 'auto' }}>Open Coach →</span>
-                </div>
-
-                {/* Grid Item 4c: Climate News */}
-                <div 
-                  className="glass-card" 
-                  onClick={() => setActiveTab('news')}
-                  style={{ padding: 24, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 12 }}
-                >
-                  <span style={{ fontSize: 32 }}>📰</span>
-                  <h4 style={{ fontSize: 16, color: 'var(--text-primary)' }}>Climate News</h4>
-                  <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                    Curated headlines and insights about renewable energy, policy, and community climate action.
-                  </p>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-accent)', marginTop: 'auto' }}>Read Latest →</span>
-                </div>
-
-                {/* Grid Item 5: Community */}
-                <div 
-                  className="glass-card" 
-                  onClick={() => setActiveTab('community')}
-                  style={{ padding: 24, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 12 }}
-                >
-                  <span style={{ fontSize: 32 }}>🏆</span>
-                  <h4 style={{ fontSize: 16, color: 'var(--text-primary)' }}>Eco Leaderboard</h4>
-                  <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                    See the top eco warriors, compare your XP rank, and get inspired by the community.
-                  </p>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-accent)', marginTop: 'auto' }}>View Rankings →</span>
-                </div>
-
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="animate-fade-in">
-            {activeTab === 'track' && (
-              <TrackingTools
-                data={calculatorData}
-                calculateFootprint={calculateFootprint}
-                renderCarbonDashboard={renderCarbonDashboard}
-              />
-            )}
-
-            {activeTab === 'learn' && (
-              <Education addXp={addXp} />
-            )}
-
-            {activeTab === 'buzz' && (
-              <ClimateBuzz addXp={addXp} user={user} />
-            )}
- 
-            {activeTab === 'act' && (
-              <ActPlatform addXp={addXp} />
-            )}
-
-            {activeTab === 'news' && (
-              <Suspense fallback={<Skeleton lines={4} />}>
-                <ClimateNews />
-              </Suspense>
-            )}
- 
-            {activeTab === 'ai-coach' && (
-              <Suspense fallback={<div>Loading AI Coach...</div>}>
-                <AIClimateCoach user={user} addXp={addXp} />
-              </Suspense>
-            )}
- 
-            {activeTab === 'community' && (
-              <Leaderboard xp={xp} level={level} user={user} />
-            )}
-          </div>
-        )}
+          {activeTab === 'coach' && user && (
+            <CoachPage calculatorData={calculatorData} user={user} />
+          )}
+        </Suspense>
       </main>
 
-      {/* Persistent Glassmorphic Bottom Navigation Bar */}
-      <nav className="glass-card" style={{
-        position: 'fixed',
-        bottom: 20,
-        left: '50%',
-        transform: 'translateX(-50%)',
-        padding: '8px',
-        borderRadius: '20px',
-        display: 'flex',
-        gap: 6,
-        boxShadow: '0 10px 30px rgba(0, 0, 0, 0.15)',
-        zIndex: 100,
-        maxWidth: '95%',
-        width: 500
-      }}>
+      {/* Mobile Persistent Bottom Nav Bar */}
+      <nav 
+        className="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-white/95 dark:bg-slate-900/95 border border-slate-200/50 dark:border-slate-850/50 shadow-xl rounded-2xl flex items-center gap-1 p-2 w-[90%] max-w-md z-50 md:hidden backdrop-blur-md"
+        aria-label="Mobile Navigation"
+      >
         {[
           { id: 'home', label: 'Home', icon: Home },
           { id: 'track', label: 'Track', icon: Compass },
           { id: 'learn', label: 'Learn', icon: GraduationCap },
-          { id: 'buzz', label: 'Buzz', icon: Newspaper },
-          { id: 'act', label: 'Act', icon: Vote },
-          { id: 'ai-coach', label: 'Coach', icon: Users },
-          { id: 'community', label: 'Ranks', icon: Users }
+          { id: 'buzz', label: 'News', icon: Newspaper },
+          { id: 'act', label: 'Act', icon: Vote }
         ].map(tab => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
           return (
             <button
               key={tab.id}
-              onClick={() => {
-                setActiveTab(tab.id);
-                if (tab.id === 'track' && !isOnboarded) {
-                  setCarbonSubTab('dashboard');
-                }
-              }}
-              className={`tab-btn ${isActive ? 'active' : ''}`}
-              style={{ flex: 1, justifyContent: 'center', padding: '10px 0', fontSize: 13 }}
+              onClick={() => handleNavClick(tab.id)}
+              className={`flex-1 flex flex-col items-center justify-center py-2.5 rounded-xl text-[10px] font-bold gap-1 transition-all ${
+                isActive
+                  ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400'
+                  : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+              }`}
+              aria-label={`Go to ${tab.label}`}
             >
-              <Icon size={18} />
-              <span className="tab-label">{tab.label}</span>
+              <Icon size={16} />
+              <span>{tab.label}</span>
             </button>
           );
         })}
       </nav>
 
-      {/* Responsive adjustments */}
-      <style>{`
-        @media (max-width: 768px) {
-          .dashboard-grid {
-            grid-template-columns: 1fr !important;
-          }
-          .tab-label {
-            display: none !important;
-          }
-          nav {
-            width: 320px !important;
-          }
-        }
-      `}</style>
+      {/* Glassmorphic Login Modal */}
+      {showLoginModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/60 dark:border-slate-800 p-6 shadow-2xl relative"
+          >
+            <h2 className="text-2xl font-bold font-outfit text-slate-800 dark:text-slate-100 mb-2">Join Climatora 🌱</h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">Create a profile to unlock streaks, achievements, mini-courses, and the AI coach.</p>
+
+            <form onSubmit={handleLoginSubmit} className="space-y-5">
+              <div>
+                <label htmlFor="login-name" className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Your Profile Name</label>
+                <input
+                  id="login-name"
+                  type="text"
+                  required
+                  placeholder="e.g. Eco Sunrise"
+                  value={loginName}
+                  onChange={(e) => setLoginName(e.target.value)}
+                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-850 rounded-xl text-slate-800 dark:text-slate-100 outline-none focus:border-emerald-500 dark:focus:border-emerald-400 transition-colors"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Select Avatar Mascot</label>
+                <div className="grid grid-cols-4 gap-3">
+                  {avatars.map((av) => (
+                    <button
+                      key={av}
+                      type="button"
+                      onClick={() => setLoginAvatar(av)}
+                      className={`h-14 rounded-xl text-2xl flex items-center justify-center border-2 transition-all ${
+                        loginAvatar === av
+                          ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/20 scale-105'
+                          : 'border-slate-100 dark:border-slate-850 hover:bg-slate-50 dark:hover:bg-slate-800/30'
+                      }`}
+                    >
+                      {av}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowLoginModal(false)}
+                  className="flex-1 py-3 text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-850 text-sm font-semibold rounded-xl border border-slate-200 dark:border-slate-805 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-3 bg-emerald-500 hover:bg-emerald-600 dark:bg-emerald-600 dark:hover:bg-emerald-700 text-white text-sm font-bold rounded-xl shadow-md shadow-emerald-500/10 hover:shadow-emerald-500/25 transition-shadow"
+                >
+                  Let's Go!
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
+
     </div>
-      </Suspense>
   );
 }

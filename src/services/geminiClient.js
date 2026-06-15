@@ -1,96 +1,119 @@
-// Lightweight Gemini client wrapper with safe fallback to mock responses.
-// Expects VITE_GEMINI_API_KEY and VITE_GEMINI_REST_URL when available.
+// Light-weight Google Gemini API REST client for Climatora
+// Endpoint: v1beta/models/gemini-2.5-flash:generateContent
 
 export async function getRecommendationFromAI(payload) {
   const key = import.meta.env.VITE_GEMINI_API_KEY;
-  const url = import.meta.env.VITE_GEMINI_REST_URL;
-
-  // If no key configured, return a deterministic mock response quickly.
-  if (!key || !url) {
-    // Simple deterministic heuristic using inputs
+  
+  // High-fidelity offline heuristic if the API key is not configured
+  const getOfflineRecommendation = () => {
     const travel = payload.travelHabits || '';
-    const electricity = Number(payload.electricity || 0);
-    const food = payload.foodHabits || 'average';
+    const electricity = Number(payload.electricity || 300);
+    const food = payload.foodHabits || '';
 
-    // Basic rule: if travel mentions car, suggest public transit
-    const suggestsPublicTransit = /car|drive|driving|rideshare/i.test(travel);
-    const improvement = suggestsPublicTransit ? 18 : 8 + Math.min(12, Math.round(electricity / 100));
+    const hasCar = /car|drive|gasoline|petrol|diesel/i.test(travel);
+    const hasHighElec = electricity > 350;
+    const hasMeat = /heavyMeat|meat/i.test(food);
+
+    let advice = 'You have a solid sustainability profile! ';
+    let reduction = 10;
+    
+    if (hasCar) {
+      advice += 'You can reduce your emissions by switching to public transport twice a week or driving an EV. ';
+      reduction += 8;
+    }
+    if (hasHighElec) {
+      advice += `Your energy use of ${electricity} kWh is high. Auditing home insulation and switching to solar can yield significant savings. `;
+      reduction += 5;
+    }
+    if (hasMeat) {
+      advice += 'Adopting plant-rich or vegetarian meals a few times a week can cut your dietary emissions significantly. ';
+      reduction += 6;
+    }
+    if (!hasCar && !hasHighElec && !hasMeat) {
+      advice += 'Keep doing what you are doing! Offset remaining footprint by planting a tree or composting.';
+    }
 
     return {
-      suggestion: `You can reduce your carbon footprint by ${improvement}% by ${suggestsPublicTransit ? 'switching to public transport twice a week' : 'reducing car trips and optimizing electricity use'}.`,
-      sustainabilityScore: 85,
-      level: 'Eco Warrior',
-      history: [120, 105, 92],
-      challenges: [
-        { id: 'bike', label: 'Use bicycle today', xp: 10 },
-        { id: 'bottle', label: 'Carry reusable bottle', xp: 5 },
-        { id: 'plant', label: 'Plant a tree', xp: 40 },
-        { id: 'save_elec', label: 'Save electricity', xp: 8 }
-      ],
-      badges: ['first_calculation', 'eco_beginner'],
+      suggestion: advice.trim(),
+      sustainabilityScore: Math.min(95, Math.max(45, 95 - Math.round(electricity / 20) - (hasCar ? 15 : 0) - (hasMeat ? 10 : 0))),
+      level: electricity > 500 ? 'Green Learner' : 'Eco Warrior',
       streak: 12,
-      stats: { co2SavedKg: 120, treesEquivalent: 6, waterSavedL: 4200, energySavedKwh: 32 },
-      news: []
+      stats: {
+        co2SavedKg: Math.round(reduction * 8.5),
+        treesEquivalent: Math.round(reduction * 8.5 / 20),
+        waterSavedL: Math.round(reduction * 250),
+        energySavedKwh: Math.round(electricity * 0.1)
+      }
     };
+  };
+
+  if (!key) {
+    // No API key configured, use local model
+    return new Promise((resolve) => {
+      setTimeout(() => resolve(getOfflineRecommendation()), 750);
+    });
   }
 
-  // Real Gemini API call (best-effort). The exact REST format depends on provider.
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`;
+
   try {
+    const promptText = `
+You are the Climatora AI Sustainability Coach.
+Analyze this user's lifestyle habits:
+- Travel habits: ${payload.travelHabits}
+- Electricity: ${payload.electricity} kWh/month
+- Diet/lifestyle: ${payload.foodHabits}
+
+Recommend a custom carbon footprint reduction plan in 2-3 sentences.
+Return a structured JSON with:
+{
+  "suggestion": "string detailing your advice",
+  "sustainabilityScore": integer 0-100,
+  "level": "string ('Beginner' | 'Green Learner' | 'Eco Warrior' | 'Climate Hero')",
+  "streak": 12,
+  "stats": {
+    "co2SavedKg": integer,
+    "treesEquivalent": integer,
+    "waterSavedL": integer,
+    "energySavedKwh": integer
+  }
+}
+Respond with JSON only. Do not wrap in markdown code blocks.
+`;
+
     const body = {
-      // a minimal prompt structure. In production, construct a robust prompt and parse response safely.
-      model: 'gpt-4o-mini',
-      prompt: `User data: ${JSON.stringify(payload)}\nProvide a concise recommendation, an estimated percent reduction, a sustainability score 0-100, 3-point history array (months), 3 challenges with XP values, badges earned, streak days, and stats {co2SavedKg,treesEquivalent,waterSavedL,energySavedKwh}. Respond as JSON only.`,
-      max_tokens: 400
+      contents: [
+        {
+          parts: [{ text: promptText }]
+        }
+      ],
+      generationConfig: {
+        responseMimeType: "application/json"
+      }
     };
 
-    const resp = await fetch(url, {
+    const response = await fetch(url, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${key}`
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify(body)
     });
 
-    if (!resp.ok) throw new Error('ai.request_failed');
-
-    const data = await resp.json();
-
-    // Try to extract JSON from returned text safely
-    let text = '';
-    if (data && data.output_text) text = data.output_text;
-    if (!text && data.choices && data.choices[0]) text = data.choices[0].text || data.choices[0].message?.content || '';
-
-    // If server already returned structured JSON, return that.
-    try {
-      const parsed = typeof data === 'object' && data.generated ? data.generated : JSON.parse(text);
-      return parsed;
-    } catch (e) {
-      // fallback to a mock if parsing failed
-      return {
-        suggestion: 'AI service returned unparseable output. Using safe fallback suggestion: reduce car use and save electricity.',
-        sustainabilityScore: 80,
-        level: 'Green Learner',
-        history: [120, 110, 95],
-        challenges: [],
-        badges: [],
-        streak: 5,
-        stats: { co2SavedKg: 40, treesEquivalent: 2, waterSavedL: 1200, energySavedKwh: 12 },
-        news: []
-      };
+    if (!response.ok) {
+      throw new Error(`Gemini API responded with status ${response.status}`);
     }
+
+    const data = await response.json();
+    const responseText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    
+    if (!responseText) {
+      throw new Error('Empty response from Gemini');
+    }
+
+    return JSON.parse(responseText);
   } catch (err) {
-    // network / parsing error -> fallback
-    return {
-      suggestion: 'AI call failed. Try again later. Meanwhile: reduce car use and reduce electricity by 10%.',
-      sustainabilityScore: 80,
-      level: 'Green Learner',
-      history: [120, 110, 95],
-      challenges: [],
-      badges: [],
-      streak: 5,
-      stats: { co2SavedKg: 40, treesEquivalent: 2, waterSavedL: 1200, energySavedKwh: 12 },
-      news: []
-    };
+    console.warn('Gemini API call failed, falling back to offline recommendations:', err);
+    return getOfflineRecommendation();
   }
 }

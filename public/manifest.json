@@ -1,0 +1,17 @@
+{
+  "short_name": "Climatora",
+  "name": "Climatora: Sustainability & Carbon Tracker",
+  "description": "Assess your environmental impact, adopt sustainable habits, and challenge yourself to live green.",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#F8FAFC",
+  "theme_color": "#10B981",
+  "display": "standalone",
+  "orientation": "portrait"
+}
