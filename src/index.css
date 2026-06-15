@@ -2,7 +2,7 @@
 
 :root {
   /* Default Light Theme - Eco-Centric Motif */
-  --bg-primary: #f5f9f7;
+  --bg-primary: #F8FAFC; /* Light background per design */
   --bg-secondary: #ffffff;
   --bg-tertiary: #ebf4f0;
   
@@ -28,9 +28,9 @@
 
 [data-theme='dark'] {
   /* Togglable Dark Theme */
-  --bg-primary: #06110c;
-  --bg-secondary: #0b1d15;
-  --bg-tertiary: #112a1e;
+  --bg-primary: #0F172A; /* modern dark background */
+  --bg-secondary: #0b1220;
+  --bg-tertiary: #0b1220;
   
   --text-primary: #e8f5ee;
   --text-secondary: #a0c3b2;

@@ -14,11 +14,16 @@ const LiveBackground = lazy(() => import('./components/LiveBackground'));
 const GlobalStatsBar = lazy(() => import('./components/GlobalStatsBar'));
 const Leaderboard = lazy(() => import('./components/Leaderboard'));
 const Onboarding = lazy(() => import('./components/Onboarding'));
-const Dashboard = lazy(() => import('./components/Dashboard'));
+const Dashboard = lazy(() => import('./components/DashboardFixed'));
 const HabitTracker = lazy(() => import('./components/HabitTracker'));
 const Compare = lazy(() => import('./components/Compare'));
 const Coach = lazy(() => import('./components/Coach'));
 const WeatherAqiWidget = lazy(() => import('./components/WeatherAqiWidget'));
+const TransitAdvisory = lazy(() => import('./components/TransitAdvisory'));
+const AIClimateCoach = lazy(() => import('./components/AIClimateCoach'));
+const ClimateNews = lazy(() => import('./components/ClimateNews'));
+
+import Skeleton from './components/Skeleton';
 
 
 const DEFAULT_CALCULATOR_DATA = {
@@ -39,7 +44,9 @@ export default function App() {
 
 function AppInner() {
   const { addToast } = useToast();
-  const [theme, setTheme] = useState('light'); // Eco-centric default is Light Mode
+  const [theme, setTheme] = useState(() => {
+    try { return localStorage.getItem('theme') || 'light'; } catch(e){ return 'light'; }
+  }); // Eco-centric default is Light Mode
   const [activeTab, setActiveTab] = useState('home'); // Starts on home portal
   const [isOnboarded, setIsOnboarded] = useState(false);
   const [calculatorData, setCalculatorData] = useState(DEFAULT_CALCULATOR_DATA);
@@ -58,10 +65,11 @@ function AppInner() {
   const [level, setLevel] = useState(1);
   const [badgeIds, setBadgeIds] = useState(['sprout']);
 
-  // Sync theme attribute on document root
+  // Sync theme attribute on document root and persist preference
   useEffect(() => {
     const root = window.document.documentElement;
     root.setAttribute('data-theme', theme);
+    try { localStorage.setItem('theme', theme); } catch(e) {}
   }, [theme]);
 
   // Carbon Footprint calculation hooks
@@ -402,7 +410,14 @@ function AppInner() {
             <GlobalStatsBar />
             
             {/* Live Weather & AQI Location Widget */}
-            <WeatherAqiWidget />
+            <Suspense fallback={<Skeleton lines={2} />}>
+              <WeatherAqiWidget />
+            </Suspense>
+
+            {/* Eco-Transit Suggestion & Travel Logger */}
+            <Suspense fallback={<Skeleton lines={3} />}>
+              <TransitAdvisory />
+            </Suspense>
             
             {/* Grid-Based Dashboard Architecture */}
             <div style={{ marginTop: 40 }}>
@@ -465,6 +480,34 @@ function AppInner() {
                   <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-accent)', marginTop: 'auto' }}>Take Action →</span>
                 </div>
 
+                {/* Grid Item 4b: AI Climate Coach */}
+                <div 
+                  className="glass-card" 
+                  onClick={() => setActiveTab('ai-coach')}
+                  style={{ padding: 24, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 12 }}
+                >
+                  <span style={{ fontSize: 32 }}>🤖</span>
+                  <h4 style={{ fontSize: 16, color: 'var(--text-primary)' }}>AI Climate Coach</h4>
+                  <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                    Personalized AI recommendations to reduce your footprint, weekly challenges and progress tracking.
+                  </p>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-accent)', marginTop: 'auto' }}>Open Coach →</span>
+                </div>
+
+                {/* Grid Item 4c: Climate News */}
+                <div 
+                  className="glass-card" 
+                  onClick={() => setActiveTab('news')}
+                  style={{ padding: 24, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 12 }}
+                >
+                  <span style={{ fontSize: 32 }}>📰</span>
+                  <h4 style={{ fontSize: 16, color: 'var(--text-primary)' }}>Climate News</h4>
+                  <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                    Curated headlines and insights about renewable energy, policy, and community climate action.
+                  </p>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-accent)', marginTop: 'auto' }}>Read Latest →</span>
+                </div>
+
                 {/* Grid Item 5: Community */}
                 <div 
                   className="glass-card" 
@@ -499,11 +542,23 @@ function AppInner() {
             {activeTab === 'buzz' && (
               <ClimateBuzz addXp={addXp} user={user} />
             )}
-
+ 
             {activeTab === 'act' && (
               <ActPlatform addXp={addXp} />
             )}
 
+            {activeTab === 'news' && (
+              <Suspense fallback={<Skeleton lines={4} />}>
+                <ClimateNews />
+              </Suspense>
+            )}
+ 
+            {activeTab === 'ai-coach' && (
+              <Suspense fallback={<div>Loading AI Coach...</div>}>
+                <AIClimateCoach user={user} addXp={addXp} />
+              </Suspense>
+            )}
+ 
             {activeTab === 'community' && (
               <Leaderboard xp={xp} level={level} user={user} />
             )}
@@ -532,6 +587,7 @@ function AppInner() {
           { id: 'learn', label: 'Learn', icon: GraduationCap },
           { id: 'buzz', label: 'Buzz', icon: Newspaper },
           { id: 'act', label: 'Act', icon: Vote },
+          { id: 'ai-coach', label: 'Coach', icon: Users },
           { id: 'community', label: 'Ranks', icon: Users }
         ].map(tab => {
           const Icon = tab.icon;
