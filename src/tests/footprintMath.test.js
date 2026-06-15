@@ -6,7 +6,8 @@ import {
   calculateVulnerabilityScore,
   sanitizeNumber,
   sanitizeString,
-  sanitizeBoolean
+  sanitizeBoolean,
+  WATER_FOOTPRINT_FACTORS
 } from '../utils/footprintMath';
 
 describe('Sanitization Utilities', () => {
@@ -153,5 +154,26 @@ describe('Vulnerability Index Calculator', () => {
     expect(calculateVulnerabilityScore(lowRisk)).toBe(20);
     expect(calculateVulnerabilityScore(midRisk)).toBe(60);
     expect(calculateVulnerabilityScore(null)).toBe(0);
+  });
+
+  test('calculateVulnerabilityScore should fallback to defaults for unknown values', () => {
+    const unknowns = { region: 'unknown_region', water: 'unknown_water', insulation: 'unknown_insulation' };
+    // fallback to stable(10) + excellent(5) + excellent(5) = 20
+    expect(calculateVulnerabilityScore(unknowns)).toBe(20);
+  });
+});
+
+describe('Additional edge cases', () => {
+  test('calculateCarbonBreakdown should return zeros when passed null', () => {
+    expect(calculateCarbonBreakdown(null)).toEqual({ transport: 0, flights: 0, diet: 0, energy: 0, lifestyle: 0 });
+  });
+
+  test('calculateWaterFootprint should return 0 when passed null', () => {
+    expect(calculateWaterFootprint(null)).toBe(0);
+  });
+
+  test('calculateWaterFootprint should fallback to lowMeat diet when dietType unknown', () => {
+    const val = calculateWaterFootprint({ showers: 0, length: 0, laundry: 0, dishwash: 0, handwash: false, dietType: 'unknown' });
+    expect(val).toBe(WATER_FOOTPRINT_FACTORS.DIET_WATER.lowMeat);
   });
 });
