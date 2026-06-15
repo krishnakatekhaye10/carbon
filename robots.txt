@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://krishnakatekhaye10.github.io/carbon/sitemap.xml
