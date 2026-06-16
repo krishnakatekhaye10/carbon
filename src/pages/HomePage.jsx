@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { ArrowRight, Leaf, Shield, Globe, Award, Sparkles, CheckCircle, Quote, Zap } from 'lucide-react';
+import { ArrowRight, Leaf, Shield, Globe, Award, Sparkles, Quote, Zap } from 'lucide-react';
 
 export default function HomePage({ onNavigate, isLoggedIn, onLoginClick }) {
   const stats = [

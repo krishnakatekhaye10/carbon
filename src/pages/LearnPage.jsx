@@ -1,12 +1,13 @@
-import React, { useState, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useMemo } from 'react';
 import { GraduationCap, Award, Search, BookOpen, CheckCircle2, AlertCircle, X, Download } from 'lucide-react';
+import WeatherAqi from '../components/WeatherAqi';
 
 const COURSES = [
   {
     id: 'basics',
     title: 'Climate Change Basics',
     description: 'Learn about the greenhouse effect, global emissions, and climate targets.',
+    videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4',
     content: 'Greenhouse gases like Carbon Dioxide (CO₂) and Methane (CH₄) trap solar heat in the Earth\'s atmosphere, warming the planet. Human activities—principally burning fossil fuels for energy, transportation, and industrial farming—have elevated carbon concentrations from 280 ppm in pre-industrial times to over 420 ppm today. The Paris Agreement seeks to limit warming to 1.5°C to avoid catastrophic feedback loops.',
     quiz: [
       {
@@ -25,6 +26,7 @@ const COURSES = [
     id: 'renewable',
     title: 'Renewable Energy Systems',
     description: 'Understand solar, wind, and geothermal grids replacing fossil fuels.',
+    videoUrl: 'https://www.w3schools.com/html/movie.mp4',
     content: 'Renewable energy systems harness infinite natural flows (sunlight, wind, heat, water) to generate electricity. Solar photovoltaic (PV) panels absorb photons to release electrons, producing DC current. Wind turbines convert kinetic energy of airflow into mechanical energy and then electric power. Transitioning national grids to renewable power is the highest impact carbon reduction strategy globally.',
     quiz: [
       {
@@ -123,7 +125,9 @@ export default function LearnPage({ addXp, user, gamification }) {
         setCompletedCourses(nextCompleted);
         try {
           localStorage.setItem('carbon_completed_courses', JSON.stringify(nextCompleted));
-        } catch {}
+        } catch {
+          // Ignore localStorage write failures in restricted environments
+        }
         addXp(150); // XP reward for passing quiz
       }
     } else {
@@ -231,6 +235,10 @@ export default function LearnPage({ addXp, user, gamification }) {
               )}
             </div>
           </div>
+          {/* Live Weather/AQI */}
+          <div className="mt-4">
+            <WeatherAqi />
+          </div>
         </div>
       </div>
 
@@ -248,6 +256,16 @@ export default function LearnPage({ addXp, user, gamification }) {
             <h3 className="text-2xl font-bold font-outfit text-slate-850 dark:text-slate-100 mb-4">{activeCourse.title}</h3>
             
             {/* Course Material Content */}
+            {/* Optional Video */}
+            {activeCourse.videoUrl && (
+              <div className="mb-4 rounded-2xl overflow-hidden border border-slate-100 dark:border-slate-850">
+                <video controls className="w-full h-auto bg-black">
+                  <source src={activeCourse.videoUrl} />
+                  Your browser does not support the video tag.
+                </video>
+              </div>
+            )}
+
             <div className="p-5 bg-slate-50 dark:bg-slate-800/30 border border-slate-100 dark:border-slate-850 rounded-2xl leading-relaxed text-sm text-slate-700 dark:text-slate-300">
               {activeCourse.content}
             </div>

@@ -1,5 +1,4 @@
-import React, { useState, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useMemo } from 'react';
 import { Newspaper, Search, Globe, ChevronRight, X, Clock, Share2 } from 'lucide-react';
 
 const ARTICLES = [

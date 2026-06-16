@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Vote, ShoppingBag, Trophy, Flame, CheckCircle, ExternalLink, ThumbsUp } from 'lucide-react';
 
-export default function ActPlatformPage({ gamification, setGamification, addXp, user }) {
+export default function ActPlatformPage({ gamification, addXp, user }) {
   // Local priorities voting state
   const [votedOption, setVotedOption] = useState(null);
   const [pollVotes, setPollVotes] = useState({

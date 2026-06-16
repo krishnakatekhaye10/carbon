@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Send, BrainCircuit, ShieldCheck, ArrowRight, RefreshCw, Car, Flame, ShoppingBag, AlertCircle } from 'lucide-react';
+import { Send, BrainCircuit, ShieldCheck, ArrowRight, RefreshCw, Car, Flame, AlertCircle } from 'lucide-react';
 import { getRecommendationFromAI } from '../services/geminiClient';
 
 export default function CoachPage({ calculatorData, user }) {
@@ -30,7 +30,7 @@ export default function CoachPage({ calculatorData, user }) {
         userName: user?.name
       });
       setResult(response);
-    } catch (err) {
+    } catch {
       setError('Failed to reach Gemini AI Coach. Using offline heuristic suggestions.');
       // safe fallback heuristic
       setResult({

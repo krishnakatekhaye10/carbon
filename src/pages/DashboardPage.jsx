@@ -1,9 +1,9 @@
-import React, { useState, useMemo } from 'react';
-import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, BarChart, Bar, CartesianGrid } from 'recharts';
+import { useState, useMemo } from 'react';
+import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import { jsPDF } from 'jspdf';
 import { 
-  Flame, Award, Download, TrendingDown, Leaf, Settings, CheckCircle2, 
-  Droplet, Zap, Target, Edit, AlertCircle, ChevronRight, ChevronLeft, Save
+  Flame, Download, TrendingDown, Leaf, CheckCircle2, 
+  Droplet, Zap, Target, Edit, ChevronRight, ChevronLeft, Save
 } from 'lucide-react';
 import { calculateCarbonBreakdown, calculateCarbonFootprint, calculateWaterFootprint } from '../utils/footprintMath';
 
@@ -57,16 +57,6 @@ export default function DashboardPage({
     { name: 'July', emissions: 105 },
     { name: 'August', emissions: 92 },
     { name: 'Current', emissions: Math.round(totalCarbon / 12) } // monthly average
-  ];
-
-  const weeklyProgress = [
-    { name: 'Mon', xp: 20 },
-    { name: 'Tue', xp: 40 },
-    { name: 'Wed', xp: 15 },
-    { name: 'Thu', xp: 30 },
-    { name: 'Fri', xp: 50 },
-    { name: 'Sat', xp: 10 },
-    { name: 'Sun', xp: 60 }
   ];
 
   // List of weekly challenges

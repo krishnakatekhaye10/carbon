@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useMemo, Suspense, lazy } from 'react';
+import { Suspense, lazy, useState, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Sun, Moon, Home, Compass, GraduationCap, Newspaper, Vote, Award, Shield, User, LogOut, Loader2 } from 'lucide-react';
+import { Sun, Moon, Home, Compass, GraduationCap, Newspaper, Vote, User, LogOut } from 'lucide-react';
 import { ToastProvider, useToast } from './components/ToastContext';
-import { calculateCarbonBreakdown, calculateCarbonFootprint } from './utils/footprintMath';
+import ErrorBoundary from './components/ErrorBoundary';
+import { useLocalStorage } from './hooks/useLocalStorage';
 
 // Lazy loaded page components
 const HomePage = lazy(() => import('./pages/HomePage'));
@@ -20,10 +21,20 @@ const DEFAULT_CALCULATOR_DATA = {
   lifestyle: { newPurchases: 5, recycling: true }
 };
 
+const NAV_ITEMS = [
+  { id: 'home', label: 'Home', icon: Home },
+  { id: 'track', label: 'Dashboard', icon: Compass },
+  { id: 'learn', label: 'Learn', icon: GraduationCap },
+  { id: 'buzz', label: 'News Feed', icon: Newspaper },
+  { id: 'act', label: 'Act & Shop', icon: Vote }
+];
+
 export default function App() {
   return (
     <ToastProvider>
-      <AppInner />
+      <ErrorBoundary>
+        <AppInner />
+      </ErrorBoundary>
     </ToastProvider>
   );
 }
@@ -46,77 +57,33 @@ function AppInner() {
   const { addToast } = useToast();
   
   // Theme state
-  const [theme, setTheme] = useState(() => {
-    try {
-      return localStorage.getItem('theme') || 'light';
-    } catch {
-      return 'light';
-    }
-  });
+  const [theme, setTheme] = useLocalStorage('theme', 'light');
 
   // Active page state
   const [activeTab, setActiveTab] = useState('home');
 
   // User state
-  const [user, setUser] = useState(() => {
-    try {
-      const stored = localStorage.getItem('carbon_user');
-      return stored ? JSON.parse(stored) : null;
-    } catch {
-      return null;
-    }
-  });
+  const [user, setUser] = useLocalStorage('carbon_user', null);
 
   // Carbon calculator data
-  const [calculatorData, setCalculatorData] = useState(() => {
-    try {
-      const stored = localStorage.getItem('carbon_tracker_data');
-      return stored ? JSON.parse(stored) : DEFAULT_CALCULATOR_DATA;
-    } catch {
-      return DEFAULT_CALCULATOR_DATA;
-    }
-  });
+  const [calculatorData, setCalculatorData] = useLocalStorage('carbon_tracker_data', DEFAULT_CALCULATOR_DATA);
 
   // Gamification state
-  const [gamification, setGamification] = useState(() => {
-    try {
-      const stored = localStorage.getItem('carbon_gamification');
-      return stored ? JSON.parse(stored) : {
-        xp: 0,
-        level: 1,
-        badgeIds: ['first_calculation'],
-        streak: 12,
-        lastActiveDate: new Date().toISOString().split('T')[0],
-        completedChallenges: [],
-        co2Saved: 120, // kg CO2 saved
-        waterSaved: 4200, // Liters water saved
-        energySaved: 32, // kWh energy saved
-        reductionGoal: 20 // percent reduction target
-      };
-    } catch {
-      return {
-        xp: 0,
-        level: 1,
-        badgeIds: ['first_calculation'],
-        streak: 12,
-        lastActiveDate: new Date().toISOString().split('T')[0],
-        completedChallenges: [],
-        co2Saved: 120,
-        waterSaved: 4200,
-        energySaved: 32,
-        reductionGoal: 20
-      };
-    }
+  const [gamification, setGamification] = useLocalStorage('carbon_gamification', {
+    xp: 0,
+    level: 1,
+    badgeIds: ['first_calculation'],
+    streak: 12,
+    lastActiveDate: new Date().toISOString().split('T')[0],
+    completedChallenges: [],
+    co2Saved: 120, // kg CO2 saved
+    waterSaved: 4200, // Liters water saved
+    energySaved: 32, // kWh energy saved
+    reductionGoal: 20 // percent reduction target
   });
 
   // Onboarding status
-  const [isOnboarded, setIsOnboarded] = useState(() => {
-    try {
-      return localStorage.getItem('carbon_onboarded') === 'true';
-    } catch {
-      return false;
-    }
-  });
+  const [isOnboarded, setIsOnboarded] = useLocalStorage('carbon_onboarded', false);
 
   // Login Modal State
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -133,41 +100,7 @@ function AppInner() {
     } else {
       root.classList.remove('dark');
     }
-    try {
-      localStorage.setItem('theme', theme);
-    } catch {}
   }, [theme]);
-
-  // Sync state to local storage
-  useEffect(() => {
-    if (user) {
-      try {
-        localStorage.setItem('carbon_user', JSON.stringify(user));
-      } catch {}
-    } else {
-      try {
-        localStorage.removeItem('carbon_user');
-      } catch {}
-    }
-  }, [user]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('carbon_tracker_data', JSON.stringify(calculatorData));
-    } catch {}
-  }, [calculatorData]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('carbon_gamification', JSON.stringify(gamification));
-    } catch {}
-  }, [gamification]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('carbon_onboarded', String(isOnboarded));
-    } catch {}
-  }, [isOnboarded]);
 
   // Manage login attempt
   const handleLoginSubmit = (e) => {
@@ -184,53 +117,51 @@ function AppInner() {
     setUser(null);
     setIsOnboarded(false);
     setActiveTab('home');
-    try {
-      localStorage.removeItem('carbon_user');
-      localStorage.removeItem('carbon_onboarded');
-    } catch {}
     addToast('Signed out successfully.', 'info');
   };
 
   // Gamification helper triggers
-  const addXp = (amount) => {
-    const nextXp = gamification.xp + amount;
-    const nextLevel = Math.floor(nextXp / 400) + 1;
-    let earnedBadges = [...gamification.badgeIds];
+  const addXp = useCallback((amount) => {
+    setGamification((prev) => {
+      const nextXp = prev.xp + amount;
+      const nextLevel = Math.floor(nextXp / 400) + 1;
+      const earnedBadges = [...prev.badgeIds];
+      let badgeNotification = null;
 
-    let badgeNotification = null;
+      if (nextLevel > prev.level) {
+        addToast(`🎉 Level Up! You reached Level ${nextLevel}!`, 'success', 4500);
+        if (nextLevel >= 2 && !earnedBadges.includes('eco_beginner')) {
+          earnedBadges.push('eco_beginner');
+          badgeNotification = '🌱 Eco Beginner';
+        }
+        if (nextLevel >= 3 && !earnedBadges.includes('recycling_champion')) {
+          earnedBadges.push('recycling_champion');
+          badgeNotification = '♻️ Recycling Champion';
+        }
+        if (nextLevel >= 4 && !earnedBadges.includes('climate_hero')) {
+          earnedBadges.push('climate_hero');
+          badgeNotification = '🌍 Climate Hero';
+        }
+      }
 
-    if (nextLevel > gamification.level) {
-      addToast(`🎉 Level Up! You reached Level ${nextLevel}!`, 'success', 4500);
-      if (nextLevel >= 2 && !earnedBadges.includes('eco_beginner')) {
-        earnedBadges.push('eco_beginner');
-        badgeNotification = '🌱 Eco Beginner';
+      if (badgeNotification) {
+        setTimeout(() => {
+          addToast(`🏅 Unlocked Badge: ${badgeNotification}!`, 'success', 4000);
+        }, 1000);
       }
-      if (nextLevel >= 3 && !earnedBadges.includes('recycling_champion')) {
-        earnedBadges.push('recycling_champion');
-        badgeNotification = '♻️ Recycling Champion';
-      }
-      if (nextLevel >= 4 && !earnedBadges.includes('climate_hero')) {
-        earnedBadges.push('climate_hero');
-        badgeNotification = '🌍 Climate Hero';
-      }
-    }
 
-    setGamification(prev => ({
-      ...prev,
-      xp: nextXp,
-      level: nextLevel,
-      badgeIds: earnedBadges
-    }));
+      return {
+        ...prev,
+        xp: nextXp,
+        level: nextLevel,
+        badgeIds: earnedBadges
+      };
+    });
 
     addToast(`+${amount} XP earned!`, 'info', 2000);
-    if (badgeNotification) {
-      setTimeout(() => {
-        addToast(`🏅 Unlocked Badge: ${badgeNotification}!`, 'success', 4000);
-      }, 1000);
-    }
-  };
+  }, [addToast, setGamification]);
 
-  const updateCalculatorData = (category, field, value) => {
+  const updateCalculatorData = useCallback((category, field, value) => {
     setCalculatorData(prev => ({
       ...prev,
       [category]: {
@@ -238,7 +169,7 @@ function AppInner() {
         [field]: value
       }
     }));
-  };
+  }, [setCalculatorData]);
 
   // Nav interceptor for unauthenticated users
   const handleNavClick = (tab) => {
@@ -277,13 +208,7 @@ function AppInner() {
 
         {/* Desktop Navbar Links */}
         <nav className="hidden md:flex items-center gap-1.5" aria-label="Main Navigation">
-          {[
-            { id: 'home', label: 'Home', icon: Home },
-            { id: 'track', label: 'Dashboard', icon: Compass },
-            { id: 'learn', label: 'Learn', icon: GraduationCap },
-            { id: 'buzz', label: 'News Feed', icon: Newspaper },
-            { id: 'act', label: 'Act & Shop', icon: Vote }
-          ].map(tab => {
+          {NAV_ITEMS.map(tab => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
             return (
@@ -397,13 +322,7 @@ function AppInner() {
         className="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-white/95 dark:bg-slate-900/95 border border-slate-200/50 dark:border-slate-850/50 shadow-xl rounded-2xl flex items-center gap-1 p-2 w-[90%] max-w-md z-50 md:hidden backdrop-blur-md"
         aria-label="Mobile Navigation"
       >
-        {[
-          { id: 'home', label: 'Home', icon: Home },
-          { id: 'track', label: 'Track', icon: Compass },
-          { id: 'learn', label: 'Learn', icon: GraduationCap },
-          { id: 'buzz', label: 'News', icon: Newspaper },
-          { id: 'act', label: 'Act', icon: Vote }
-        ].map(tab => {
+        {NAV_ITEMS.map(tab => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
           return (
